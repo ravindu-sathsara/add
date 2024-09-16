@@ -1,41 +1,32 @@
-import os
-from telegram import Bot, Update
-from telegram.ext import Updater, CommandHandler
-from telegram.ext import CallbackContext
+import telebot
+from telebot import types
 
-# Bot Token from Environment Variable (Heroku will set this later)
-TOKEN = os.environ.get('BOT_TOKEN')
-GROUP_A_ID = os.environ.get('GROUP_A_ID')  # ID of Group A (where members will be fetched)
-GROUP_B_ID = os.environ.get('GROUP_B_ID')  # ID of Group B (where members will be added)
+API_TOKEN = '7527474500:AAEXhDJqMYTU7fku4eeVsTx_liY8dQAlZ5w'
+bot = telebot.TeleBot(API_TOKEN)
 
-bot = Bot(token=TOKEN)
+# Command to remove or ban all members
+@bot.message_handler(commands=['banall'])
+def ban_all_members(message):
+    if message.chat.type == "supergroup" or message.chat.type == "group":
+        bot_admins = bot.get_chat_administrators(message.chat.id)
+        bot_admin_ids = [admin.user.id for admin in bot_admins]
+        
+        # Ensure the bot is an admin
+        if bot.get_me().id in bot_admin_ids:
+            bot.send_message(message.chat.id, "Bot is starting to ban all members!")
+            
+            # Get all members of the group
+            for member in bot.get_chat_members(message.chat.id):
+                try:
+                    if member.user.id not in bot_admin_ids:  # Don't ban other admins
+                        bot.ban_chat_member(message.chat.id, member.user.id)
+                        bot.send_message(message.chat.id, f"Banned: {member.user.first_name}")
+                except Exception as e:
+                    bot.send_message(message.chat.id, f"Could not ban: {member.user.first_name} - {str(e)}")
+        else:
+            bot.send_message(message.chat.id, "I need to be an admin to ban members.")
+    else:
+        bot.send_message(message.chat.id, "This command works only in groups.")
 
-# Command to fetch members and send invites
-def fetch_members(update: Update, context: CallbackContext):
-    # Fetch up to 100 members from Group A
-    chat_id = GROUP_A_ID
-    members = bot.get_chat_administrators(chat_id)[:100]
-    
-    for member in members:
-        try:
-            # Generate invite link for Group B and send to user
-            invite_link = bot.export_chat_invite_link(chat_id=GROUP_B_ID)
-            bot.send_message(chat_id=member.user.id, text=f"Join Group B: {invite_link}")
-        except Exception as e:
-            update.message.reply_text(f"Failed to invite {member.user.username}: {e}")
-    
-    update.message.reply_text("Invites sent to selected members!")
-
-# Setting up the bot and command handler
-def main():
-    updater = Updater(token=TOKEN, use_context=True)
-    dispatcher = updater.dispatcher
-
-    # Command handler for fetching members
-    dispatcher.add_handler(CommandHandler('fetch_members', fetch_members))
-
-    updater.start_polling()
-    updater.idle()
-
-if __name__ == '__main__':
-    main()
+# Start polling the bot
+bot.infinity_polling()
