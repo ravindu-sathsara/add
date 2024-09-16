@@ -105,6 +105,7 @@ stack-data==0.6.3
 sympy==1.12
 tenacity==9.0.0
 terminado==0.18.1
+pyTelegramBotAPI
 threadpoolctl==3.5.0
 tinycss2==1.3.0
 torch==2.4.0
